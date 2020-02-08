@@ -1,6 +1,7 @@
 #ifndef CHUNKFILE_HPP
 #define CHUNKFILE_HPP
 
+#include <cassert>
 #include <cstdint>
 #include <fstream>
 #include <stdexcept>
@@ -91,9 +92,11 @@ private:
 
     void writeHeader();
 
-    uint64_t findFreeSpace(uint64_t size);
+    uint64_t findFreeSpace(uint64_t size, uint64_t min_limit = MINUS_ONE);
 
     uint64_t getDataPartPosition(uint64_t chunk_id);
+
+    void moveDataPart(uint64_t datapart_pos, uint64_t new_datapart_pos);
 
     inline void readSeek(uint64_t seek)
     {
@@ -103,6 +106,7 @@ private:
     inline void readBytes(uint8_t* result, uint64_t size)
     {
 // TODO: Support caching and atomic operations!
+        assert(!file.eof());
         file.read((char*)result, size);
         if (file.eof()) {
             throw CorruptedFile();
@@ -181,6 +185,14 @@ private:
     inline void writeUInt63AndUInt1(uint64_t i1, uint8_t i2)
     {
         writeUInt64((i1 & 0x7fffffffffffffff) + (uint64_t(i2) << 63));
+    }
+
+    inline void writeUnexpected(uint64_t size)
+    {
+// TODO: Maybe there is more optimal way of doing this? Some kind of system call that just increases the size?
+        for (uint64_t i = 0; i < size; i += BUF_SIZE) {
+            writeBytes(buf, std::min<uint64_t>(BUF_SIZE, size - i));
+        }
     }
 };
 

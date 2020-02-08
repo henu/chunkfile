@@ -1,7 +1,5 @@
 #include "chunkfile.hpp"
 
-#include <cassert>
-
 Chunkfile::Chunkfile(std::string const& path)
 {
     buf = new uint8_t[BUF_SIZE];
@@ -105,6 +103,13 @@ void Chunkfile::reserve(uint64_t new_reserve)
         if (chunk_type == DATAPART_TYPE_FREESPACE && chunk_size >= new_space_needed + DATAPART_FREESPACE_MIN_SIZE) {
             create_new_empty_data_part = true;
             break;
+        }
+
+        // If there is data, then move it away
+        if (chunk_type == DATAPART_TYPE_DATA) {
+            uint64_t new_chunk_pos = findFreeSpace(chunk_size, new_data_area_begin);
+            moveDataPart(data_area_begin, new_chunk_pos);
+            continue;
         }
 
 // TODO: Code more complex cases!
@@ -245,8 +250,29 @@ void Chunkfile::writeHeader()
     writeUInt64(total_data_part_empty_space);
 }
 
-uint64_t Chunkfile::findFreeSpace(uint64_t size)
+uint64_t Chunkfile::findFreeSpace(uint64_t size, uint64_t min_limit)
 {
+    // If minimum limit is after the file size, then create
+    // some extra free space at the end of the file. This
+    // way it is possible to return the end of the file.
+    if (min_limit != MINUS_ONE && min_limit > file_size) {
+        // Calculate how much extra free space is needed. It needs
+        // to be at least the length of minimum sized datapart.
+        uint64_t new_free_space_size = std::max<uint64_t>(min_limit - file_size, DATAPART_FREESPACE_MIN_SIZE);
+
+        // Create new datapart of free space
+        writeSeek(file_size);
+        writeUInt63AndUInt1(new_free_space_size, DATAPART_TYPE_FREESPACE);
+        writeUnexpected(new_free_space_size - DATAPART_FREESPACE_MIN_SIZE);
+
+        // Update counters
+        file_size += new_free_space_size;
+        total_data_part_empty_space += new_free_space_size;
+        writeHeader();
+
+        return file_size;
+    }
+
     // For now, just return the end of the file.
 (void)size;
 // TODO: In the future, try to do some optimization if there is lots of free space.
@@ -264,4 +290,57 @@ uint64_t Chunkfile::getDataPartPosition(uint64_t chunk_id)
         throw ChunkDoesNotExist();
     }
     return data_part_pos;
+}
+
+void Chunkfile::moveDataPart(uint64_t datapart_pos, uint64_t new_datapart_pos)
+{
+    // Read datapart information
+    readSeek(datapart_pos);
+    uint64_t datapart_size;
+    uint8_t datapart_type;
+    readUInt63AndUInt1(datapart_size, datapart_type);
+    if (datapart_size < DATAPART_DATA_MIN_SIZE) {
+        throw CorruptedFile();
+    }
+    if (datapart_type != DATAPART_TYPE_DATA) {
+        throw CorruptedFile();
+    }
+    uint64_t chunk_id = readUInt64();
+    if (chunk_id >= chunk_space_reserved) {
+        throw CorruptedFile();
+    }
+    uint64_t datapart_data_size = datapart_size - DATAPART_DATA_MIN_SIZE;
+    uint8_t* datapart_data = new uint8_t[datapart_data_size];
+    readBytes(datapart_data, datapart_data_size);
+
+    try {
+        // If target is end of file
+        if (new_datapart_pos == file_size) {
+            // Copy to new position
+            writeSeek(new_datapart_pos);
+            writeUInt63AndUInt1(datapart_size, DATAPART_TYPE_DATA);
+            writeUInt64(chunk_id);
+            writeBytes(datapart_data, datapart_data_size);
+            file_size += datapart_size;
+            // Convert old position with free space
+            writeSeek(datapart_pos);
+            writeUInt63AndUInt1(datapart_size, DATAPART_TYPE_FREESPACE);
+// TODO: If next datapart is also empty, it is good idea to combine them!
+            total_data_part_empty_space += datapart_size;
+        } else {
+// TODO: Code this!
+throw std::runtime_error("Not implemented yet!");
+        }
+    }
+    catch ( ... ) {
+        delete[] datapart_data;
+        throw;
+    }
+    delete[] datapart_data;
+
+    // Update chunk
+    writeSeek(HEADER_SIZE + chunk_id * HEADERPART_SIZE);
+    writeUInt64(new_datapart_pos);
+
+    writeHeader();
 }
