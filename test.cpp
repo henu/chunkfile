@@ -43,6 +43,23 @@ void testFileCreation(std::string const& path)
     }
 }
 
+void testAddingFirstChunk(std::string const& path)
+{
+    // Write to file
+    {
+        Chunkfile file(path);
+        file.set(0, std::string("yolo"));
+    }
+
+    // Test
+    {
+        Chunkfile file(path);
+        std::string test;
+        file.get(test, 0);
+        testTrue(test == std::string("yolo"));
+    }
+}
+
 void testFileRemoval(std::string const& path)
 {
     testFalse(::remove(path.c_str()));
@@ -56,6 +73,10 @@ int main()
 
     std::cout << "Test file creation..." << std::endl;
     testFileCreation(path);
+    std::cout << "Passed!" << std::endl;
+
+    std::cout << "Test adding first chunk..." << std::endl;
+    testAddingFirstChunk(path);
     std::cout << "Passed!" << std::endl;
 
     std::cout << "Test file removal..." << std::endl;

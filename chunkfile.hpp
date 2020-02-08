@@ -26,8 +26,36 @@ public:
         inline UnsupportedVersion() : std::runtime_error("Unsupported version!") {}
     };
 
+    class ChunkDoesNotExist : public std::runtime_error
+    {
+    public:
+        inline ChunkDoesNotExist() : std::runtime_error("Chunk does not exist!") {}
+    };
+
     Chunkfile(std::string const& path);
     ~Chunkfile();
+
+    void reserve(uint64_t chunks);
+
+    bool exists(uint64_t chunk_id);
+
+    void set(uint64_t chunk_id, uint8_t const* bytes, uint64_t size);
+
+    inline void set(uint64_t chunk_id, std::string const& str)
+    {
+        set(chunk_id, (uint8_t const*)str.c_str(), str.size());
+    }
+
+    uint64_t getChunkSize(uint64_t chunk_id);
+
+    void get(uint8_t* result, uint64_t chunk_id);
+
+    inline void get(std::string& result, uint64_t chunk_id)
+    {
+        uint64_t chunk_size = getChunkSize(chunk_id);
+        result.assign(chunk_size, '\0');
+        get((uint8_t*)&result[0], chunk_id);
+    }
 
 private:
 
@@ -62,6 +90,10 @@ private:
     uint8_t* buf;
 
     void writeHeader();
+
+    uint64_t findFreeSpace(uint64_t size);
+
+    uint64_t getDataPartPosition(uint64_t chunk_id);
 
     inline void readSeek(uint64_t seek)
     {
