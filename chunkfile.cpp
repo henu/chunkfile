@@ -205,10 +205,7 @@ void Chunkfile::set(uint64_t chunk_id, uint8_t const* bytes, uint64_t size)
 
     // If old chunk needs to be cleared first
     if (exists(chunk_id)) {
-// TODO: Code this!
-throw std::runtime_error("Not implemented yet!");
-    } else {
-        ++ chunks;
+        del(chunk_id);
     }
 
     // Get properties of new data part
@@ -252,6 +249,8 @@ throw std::runtime_error("Not implemented yet!");
     writeUInt64(chunk_id);
     writeBytes(bytes, size);
 
+    // Update header
+    ++ chunks;
     writeHeader();
 }
 
