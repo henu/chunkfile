@@ -58,6 +58,8 @@ public:
         get((uint8_t*)&result[0], chunk_id);
     }
 
+    void del(uint64_t chunk_id);
+
 private:
 
     // Chunk is divided to header and data parts. The header part

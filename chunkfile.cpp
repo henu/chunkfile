@@ -285,6 +285,26 @@ void Chunkfile::get(uint8_t* result, uint64_t chunk_id)
     readBytes(result, data_part_size - DATAPART_DATA_MIN_SIZE);
 }
 
+void Chunkfile::del(uint64_t chunk_id)
+{
+    uint64_t data_part_pos = getDataPartPosition(chunk_id);
+    // Convert data part to empty space
+    readSeek(data_part_pos);
+    uint64_t data_part_size;
+    uint8_t data_part_type;
+    readUInt63AndUInt1(data_part_size, data_part_type);
+    writeSeek(data_part_pos);
+    writeUInt63AndUInt1(data_part_size, DATAPART_TYPE_FREESPACE);
+// TODO: If there is free space after the data part, merge them.
+    // Remove header part
+    writeSeek(HEADER_SIZE + chunk_id * HEADERPART_SIZE);
+    writeUInt64(MINUS_ONE);
+    // Update header
+    -- chunks;
+    total_data_part_empty_space += data_part_size;
+    writeHeader();
+}
+
 void Chunkfile::writeHeader()
 {
     file_size = std::max<uint64_t>(file_size, HEADER_SIZE);

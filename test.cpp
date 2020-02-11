@@ -100,6 +100,24 @@ void testAddingBigChunk(std::string const& path)
     }
 }
 
+void testRemovingChunks(std::string const& path)
+{
+    // Write to file
+    {
+        Chunkfile file(path);
+        file.del(0);
+        file.del(2);
+    }
+
+    // Test
+    {
+        Chunkfile file(path);
+        testFalse(file.exists(0));
+        testTrue(file.exists(1));
+        testFalse(file.exists(2));
+    }
+}
+
 void testFileRemoval(std::string const& path)
 {
     testFalse(::remove(path.c_str()));
@@ -125,6 +143,10 @@ int main()
 
     std::cout << "Test adding big chunk..." << std::endl;
     testAddingBigChunk(path);
+    std::cout << "Passed!" << std::endl;
+
+    std::cout << "Test removing chunks..." << std::endl;
+    testRemovingChunks(path);
     std::cout << "Passed!" << std::endl;
 
     std::cout << "Test file removal..." << std::endl;
