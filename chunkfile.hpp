@@ -60,6 +60,8 @@ public:
 
     void del(uint64_t chunk_id);
 
+    void verify();
+
 private:
 
     // Chunk is divided to header and data parts. The header part
@@ -195,6 +197,12 @@ private:
         for (uint64_t i = 0; i < size; i += BUF_SIZE) {
             writeBytes(buf, std::min<uint64_t>(BUF_SIZE, size - i));
         }
+    }
+
+    inline uint64_t getFileSize()
+    {
+        file.seekg(0, std::ios::end);
+        return file.tellg();
     }
 };
 

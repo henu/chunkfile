@@ -305,6 +305,84 @@ void Chunkfile::del(uint64_t chunk_id)
     writeHeader();
 }
 
+void Chunkfile::verify()
+{
+    // Verify some basic numbers
+    if (file_size != getFileSize()) {
+        throw CorruptedFile();
+    }
+    if (HEADER_SIZE + chunk_space_reserved * HEADERPART_SIZE > file_size) {
+        throw CorruptedFile();
+    }
+    // Verify header parts
+    uint64_t chunks_found = 0;
+    for (uint64_t chunk_id = 0; chunk_id < chunk_space_reserved; ++ chunk_id) {
+        readSeek(HEADER_SIZE + chunk_id * HEADERPART_SIZE);
+        uint64_t data_part_pos = readUInt64();
+        if (data_part_pos != MINUS_ONE) {
+            if (data_part_pos + DATAPART_FREESPACE_MIN_SIZE > file_size) {
+                throw CorruptedFile();
+            }
+            readSeek(data_part_pos);
+            uint64_t data_part_size;
+            uint8_t data_part_type;
+            readUInt63AndUInt1(data_part_size, data_part_type);
+            if (data_part_pos + data_part_size > file_size) {
+                throw CorruptedFile();
+            }
+            if (data_part_size < DATAPART_FREESPACE_MIN_SIZE) {
+                throw CorruptedFile();
+            }
+            if (data_part_type == DATAPART_TYPE_DATA) {
+                if (data_part_size < DATAPART_DATA_MIN_SIZE) {
+                    throw CorruptedFile();
+                }
+                uint64_t chunk_id2 = readUInt64();
+                if (chunk_id != chunk_id2) {
+                    throw CorruptedFile();
+                }
+            }
+            ++ chunks_found;
+        }
+    }
+    if (chunks_found != chunks) {
+        throw CorruptedFile();
+    }
+    // Verify data parts
+    uint64_t empty_space_found = 0;
+    uint64_t data_part_pos = HEADER_SIZE + chunk_space_reserved * HEADERPART_SIZE;
+    while (data_part_pos != file_size) {
+        if (data_part_pos > file_size) {
+            throw CorruptedFile();
+        }
+        readSeek(data_part_pos);
+        uint64_t data_part_size;
+        uint8_t data_part_type;
+        readUInt63AndUInt1(data_part_size, data_part_type);
+        if (data_part_pos + data_part_size > file_size) {
+            throw CorruptedFile();
+        }
+        if (data_part_size < DATAPART_FREESPACE_MIN_SIZE) {
+            throw CorruptedFile();
+        }
+        if (data_part_type == DATAPART_TYPE_DATA) {
+            if (data_part_size < DATAPART_DATA_MIN_SIZE) {
+                throw CorruptedFile();
+            }
+            uint64_t chunk_id2 = readUInt64();
+            if (chunk_id2 >= chunk_space_reserved) {
+                throw CorruptedFile();
+            }
+        } else {
+            empty_space_found += data_part_size;
+        }
+        data_part_pos += data_part_size;
+    }
+    if (empty_space_found != total_data_part_empty_space) {
+        throw CorruptedFile();
+    }
+}
+
 void Chunkfile::writeHeader()
 {
     file_size = std::max<uint64_t>(file_size, HEADER_SIZE);

@@ -40,6 +40,7 @@ void testFileCreation(std::string const& path)
     // Test if file opens nicely
     {
         Chunkfile file(path);
+        file.verify();
     }
 }
 
@@ -57,6 +58,7 @@ void testAddingFirstChunk(std::string const& path)
         std::string test;
         file.get(test, 0);
         testTrue(test == std::string("yolo"));
+        file.verify();
     }
 }
 
@@ -76,6 +78,7 @@ void testAddingSecondChunk(std::string const& path)
         testTrue(test == std::string("yolo"));
         file.get(test, 1);
         testTrue(test == std::string("ebin"));
+        file.verify();
     }
 }
 
@@ -97,6 +100,7 @@ void testAddingBigChunk(std::string const& path)
         testTrue(test == std::string("ebin"));
         file.get(test, 2);
         testTrue(test == std::string("lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots of data"));
+        file.verify();
     }
 }
 
@@ -115,6 +119,7 @@ void testRemovingChunks(std::string const& path)
         testFalse(file.exists(0));
         testTrue(file.exists(1));
         testFalse(file.exists(2));
+        file.verify();
     }
 }
 
