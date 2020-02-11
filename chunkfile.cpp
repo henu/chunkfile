@@ -298,9 +298,20 @@ void Chunkfile::del(uint64_t chunk_id)
     // Remove header part
     writeSeek(HEADER_SIZE + chunk_id * HEADERPART_SIZE);
     writeUInt64(MINUS_ONE);
-    // Update header
+    // Update counters
     -- chunks;
     total_data_part_empty_space += data_part_size;
+    // Check if it would be good time to do some optimizations
+    if (chunks * OPTIMIZE_THRESHOLD <= chunk_space_reserved) {
+        optimizeHeaderParts();
+    }
+    uint64_t data_area_begin = HEADER_SIZE + chunk_space_reserved * HEADERPART_SIZE;
+    uint64_t data_area_size = file_size - data_area_begin;
+    uint64_t actual_data_size = data_area_size - total_data_part_empty_space;
+    if (actual_data_size * OPTIMIZE_THRESHOLD <= data_area_size) {
+        optimizeDataParts();
+    }
+
     writeHeader();
 }
 
@@ -380,6 +391,12 @@ void Chunkfile::verify()
     if (empty_space_found != total_data_part_empty_space) {
         throw CorruptedFile();
     }
+}
+
+void Chunkfile::optimize()
+{
+    optimizeHeaderParts();
+    optimizeDataParts();
 }
 
 void Chunkfile::writeHeader()
@@ -486,4 +503,34 @@ throw std::runtime_error("Not implemented yet!");
     writeUInt64(new_datapart_pos);
 
     writeHeader();
+}
+
+void Chunkfile::optimizeHeaderParts()
+{
+    // Calculate how many empty chunks are at the end of header area
+    uint64_t empty_chunks_at_end = 0;
+    while (empty_chunks_at_end < chunk_space_reserved) {
+        uint64_t chunk_id = chunk_space_reserved - 1 - empty_chunks_at_end;
+        readSeek(HEADER_SIZE + chunk_id * HEADERPART_SIZE);
+        uint64_t datapart_pos = readUInt64();
+        if (datapart_pos == MINUS_ONE) {
+            ++ empty_chunks_at_end;
+        } else {
+            break;
+        }
+    }
+    // If empty chunks were found, then shrink chunk reservation
+    if (empty_chunks_at_end) {
+        chunk_space_reserved -= empty_chunks_at_end;
+        uint64_t data_area_move = empty_chunks_at_end * HEADERPART_SIZE;
+        uint64_t new_data_area_begin = HEADER_SIZE + chunk_space_reserved * HEADERPART_SIZE;
+        writeSeek(new_data_area_begin);
+        writeUInt63AndUInt1(data_area_move, DATAPART_TYPE_FREESPACE);
+        total_data_part_empty_space += data_area_move;
+    }
+}
+
+void Chunkfile::optimizeDataParts()
+{
+// TODO: Code this!
 }

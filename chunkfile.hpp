@@ -62,6 +62,8 @@ public:
 
     void verify();
 
+    void optimize();
+
 private:
 
     // Chunk is divided to header and data parts. The header part
@@ -85,6 +87,8 @@ private:
 
     static uint64_t const MINUS_ONE = -1;
 
+    static uint64_t const OPTIMIZE_THRESHOLD = 4;
+
     std::fstream file;
 
     uint64_t file_size;
@@ -101,6 +105,10 @@ private:
     uint64_t getDataPartPosition(uint64_t chunk_id);
 
     void moveDataPart(uint64_t datapart_pos, uint64_t new_datapart_pos);
+
+    void optimizeHeaderParts();
+
+    void optimizeDataParts();
 
     inline void readSeek(uint64_t seek)
     {

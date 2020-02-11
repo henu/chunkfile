@@ -139,6 +139,21 @@ void testRemovingChunks(std::string const& path)
         testFalse(file.exists(2));
         file.verify();
     }
+
+    // Write to file
+    {
+        Chunkfile file(path);
+        file.del(1);
+    }
+
+    // Test
+    {
+        Chunkfile file(path);
+        testFalse(file.exists(0));
+        testFalse(file.exists(1));
+        testFalse(file.exists(2));
+        file.verify();
+    }
 }
 
 void testFileRemoval(std::string const& path)
