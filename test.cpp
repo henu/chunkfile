@@ -79,6 +79,27 @@ void testAddingSecondChunk(std::string const& path)
     }
 }
 
+void testAddingBigChunk(std::string const& path)
+{
+    // Write to file
+    {
+        Chunkfile file(path);
+        file.set(2, std::string("lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots of data"));
+    }
+
+    // Test
+    {
+        Chunkfile file(path);
+        std::string test;
+        file.get(test, 0);
+        testTrue(test == std::string("yolo"));
+        file.get(test, 1);
+        testTrue(test == std::string("ebin"));
+        file.get(test, 2);
+        testTrue(test == std::string("lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots and lots of data"));
+    }
+}
+
 void testFileRemoval(std::string const& path)
 {
     testFalse(::remove(path.c_str()));
@@ -100,6 +121,10 @@ int main()
 
     std::cout << "Test adding second chunk..." << std::endl;
     testAddingSecondChunk(path);
+    std::cout << "Passed!" << std::endl;
+
+    std::cout << "Test adding big chunk..." << std::endl;
+    testAddingBigChunk(path);
     std::cout << "Passed!" << std::endl;
 
     std::cout << "Test file removal..." << std::endl;

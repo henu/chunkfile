@@ -112,8 +112,54 @@ void Chunkfile::reserve(uint64_t new_reserve)
             continue;
         }
 
-// TODO: Code more complex cases!
-throw std::runtime_error("Not implemented yet!");
+        // If there are two successive free spaces, then combine them
+        if (chunk_type == DATAPART_TYPE_FREESPACE) {
+            uint64_t next_chunk_pos = data_area_begin + chunk_size;
+            if (next_chunk_pos > file_size) {
+                throw CorruptedFile();
+            }
+            if (next_chunk_pos < file_size) {
+                uint64_t next_chunk_size;
+                uint8_t next_chunk_type;
+                readSeek(next_chunk_pos);
+                readUInt63AndUInt1(next_chunk_size, next_chunk_type);
+                if (next_chunk_type == DATAPART_TYPE_FREESPACE) {
+                    writeSeek(data_area_begin);
+                    writeUInt63AndUInt1(chunk_size + next_chunk_size, DATAPART_TYPE_FREESPACE);
+                    continue;
+                }
+            }
+        }
+
+        // If there is free space, but its too small
+        if (chunk_type == DATAPART_TYPE_FREESPACE && chunk_size < new_space_needed + DATAPART_FREESPACE_MIN_SIZE) {
+            uint64_t next_chunk_pos = data_area_begin + chunk_size;
+            if (next_chunk_pos > file_size) {
+                throw CorruptedFile();
+            }
+            // If this is the last data part, then it can be easily grown
+            if (next_chunk_pos == file_size) {
+                uint64_t size_increase = new_space_needed + DATAPART_FREESPACE_MIN_SIZE - chunk_size;
+                writeSeek(file_size);
+                writeUnexpected(size_increase);
+                writeSeek(data_area_begin);
+                writeUInt63AndUInt1(chunk_size + size_increase, DATAPART_TYPE_FREESPACE);
+                total_data_part_empty_space += size_increase;
+                continue;
+            }
+            // Read the next data part after the free space
+            uint64_t next_chunk_size;
+            uint8_t next_chunk_type;
+            readSeek(next_chunk_pos);
+            readUInt63AndUInt1(next_chunk_size, next_chunk_type);
+            // Find new position for it and move it there.
+            uint64_t next_chunk_new_pos = findFreeSpace(next_chunk_size, new_data_area_begin);
+            moveDataPart(next_chunk_pos, next_chunk_new_pos);
+            continue;
+        }
+
+// TODO: Remove this at some point when we are sure this part of code is never reached!
+throw std::runtime_error("This should not be reached!");
     }
 
     // Do required fixes
