@@ -104,6 +104,36 @@ void testAddingBigChunk(std::string const& path)
     }
 }
 
+void testVectorSetAndGet(std::string const& path)
+{
+    // Write to file
+    {
+        Chunkfile::Bytes bytes;
+        bytes.push_back('x');
+        bytes.push_back('y');
+        bytes.push_back('z');
+        Chunkfile file(path);
+        file.set(3, bytes);
+    }
+
+    // Test
+    {
+        Chunkfile file(path);
+        std::string test = file.getString(3);
+        testTrue(test == std::string("xyz"));
+        file.verify();
+    }
+    {
+        Chunkfile file(path);
+        Chunkfile::Bytes test = file.getBytes(3);
+        testTrue(test.size() == 3);
+        testTrue(test[0] == 'x');
+        testTrue(test[1] == 'y');
+        testTrue(test[2] == 'z');
+        file.verify();
+    }
+}
+
 void testReplacingChunk(std::string const& path)
 {
     // Write to file
@@ -181,6 +211,10 @@ int main()
 
     std::cout << "Test adding big chunk..." << std::endl;
     testAddingBigChunk(path);
+    std::cout << "Passed!" << std::endl;
+
+    std::cout << "Test using std::vector..." << std::endl;
+    testVectorSetAndGet(path);
     std::cout << "Passed!" << std::endl;
 
     std::cout << "Test replacing chunk..." << std::endl;

@@ -6,6 +6,7 @@
 #include <fstream>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 // Two file library (only .cpp and .hpp files are needed) that represents file
 // as a vector of Chunks. Chunks are arrays of bytes. They are identified by
@@ -33,6 +34,8 @@ public:
         inline ChunkDoesNotExist() : std::runtime_error("Chunk does not exist!") {}
     };
 
+    typedef std::vector<uint8_t> Bytes;
+
     Chunkfile(std::string const& path);
     ~Chunkfile();
 
@@ -47,15 +50,41 @@ public:
         set(chunk_id, (uint8_t const*)str.c_str(), str.size());
     }
 
+    inline void set(uint64_t chunk_id, Bytes const& bytes)
+    {
+        set(chunk_id, &bytes[0], bytes.size());
+    }
+
     uint64_t getChunkSize(uint64_t chunk_id);
 
     void get(uint8_t* result, uint64_t chunk_id);
+
+    inline void get(Bytes& result, uint64_t chunk_id)
+    {
+        uint64_t chunk_size = getChunkSize(chunk_id);
+        result.assign(chunk_size, 0);
+        get((uint8_t*)&result[0], chunk_id);
+    }
+
+    inline Bytes getBytes(uint64_t chunk_id)
+    {
+        Bytes result;
+        get(result, chunk_id);
+        return result;
+    }
 
     inline void get(std::string& result, uint64_t chunk_id)
     {
         uint64_t chunk_size = getChunkSize(chunk_id);
         result.assign(chunk_size, '\0');
         get((uint8_t*)&result[0], chunk_id);
+    }
+
+    inline std::string getString(uint64_t chunk_id)
+    {
+        std::string result;
+        get(result, chunk_id);
+        return result;
     }
 
     void del(uint64_t chunk_id);
