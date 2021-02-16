@@ -134,20 +134,22 @@ void testVectorSetAndGet(std::string const& path)
     }
 }
 
-void testReplacingChunk(std::string const& path)
+void testReplacingChunks(std::string const& path)
 {
     // Write to file
     {
         Chunkfile file(path);
         file.set(0, std::string("a little bit bigger chunk"));
+        file.set(1, std::string("another longer chunk"));
+        file.set(3, std::string("and one more"));
     }
 
     // Test
     {
         Chunkfile file(path);
-        std::string test;
-        file.get(test, 0);
-        testTrue(test == std::string("a little bit bigger chunk"));
+        testTrue(file.getString(0) == std::string("a little bit bigger chunk"));
+        testTrue(file.getString(1) == std::string("another longer chunk"));
+        testTrue(file.getString(3) == std::string("and one more"));
         file.verify();
     }
 }
@@ -167,6 +169,7 @@ void testRemovingChunks(std::string const& path)
         testFalse(file.exists(0));
         testTrue(file.exists(1));
         testFalse(file.exists(2));
+        testTrue(file.exists(3));
         file.verify();
     }
 
@@ -182,6 +185,23 @@ void testRemovingChunks(std::string const& path)
         testFalse(file.exists(0));
         testFalse(file.exists(1));
         testFalse(file.exists(2));
+        testTrue(file.exists(3));
+        file.verify();
+    }
+
+    // Write to file
+    {
+        Chunkfile file(path);
+        file.del(3);
+    }
+
+    // Test
+    {
+        Chunkfile file(path);
+        testFalse(file.exists(0));
+        testFalse(file.exists(1));
+        testFalse(file.exists(2));
+        testFalse(file.exists(3));
         file.verify();
     }
 }
@@ -218,7 +238,7 @@ int main()
     std::cout << "Passed!" << std::endl;
 
     std::cout << "Test replacing chunk..." << std::endl;
-    testReplacingChunk(path);
+    testReplacingChunks(path);
     std::cout << "Passed!" << std::endl;
 
     std::cout << "Test removing chunks..." << std::endl;
